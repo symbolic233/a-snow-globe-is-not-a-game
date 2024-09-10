@@ -27,10 +27,14 @@ struct PlayMode : Mode {
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
-	float rotator = 0.0f;
-	float total_elapsed = 0.0f;
-	float time_limit = 5.0f;
-	uint32_t points = 0;
+	//hexapod leg to wobble:
+	Scene::Transform *hip = nullptr;
+	Scene::Transform *upper_leg = nullptr;
+	Scene::Transform *lower_leg = nullptr;
+	glm::quat hip_base_rotation;
+	glm::quat upper_leg_base_rotation;
+	glm::quat lower_leg_base_rotation;
+	float wobble = 0.0f;
 	
 	//camera:
 	Scene::Camera *camera = nullptr;
