@@ -9,6 +9,7 @@
 
 //GL.hpp will include a non-namespace-polluting set of opengl prototypes:
 #include "GL.hpp"
+#include "gl_errors.hpp"
 
 //for screenshots:
 #include "load_save_png.hpp"
@@ -96,6 +97,20 @@ int main(int argc, char **argv) {
 		std::cerr << "NOTE: couldn't set vsync + late swap tearing (" << SDL_GetError() << ")." << std::endl;
 		if (SDL_GL_SetSwapInterval(1) != 0) {
 			std::cerr << "NOTE: couldn't set vsync (" << SDL_GetError() << ")." << std::endl;
+		}
+	}
+
+	{ //Check and report colorspace:
+		GLint encoding = 0;
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_FRONT_LEFT, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &encoding);
+		GL_ERRORS();
+		std::cout << "Color encoding in framebuffer is ";
+		if (encoding == GL_LINEAR) {
+			std::cout << "GL_LINEAR" << std::endl;
+		} else if (encoding == GL_SRGB) {
+			std::cout << "GL_SRGB" << std::endl;
+		} else {
+			std::cout << "Unknown (" << encoding << ")" << std::endl;
 		}
 	}
 
