@@ -29,7 +29,7 @@ struct PlayMode : Mode {
 
 	float rotator = 0.0f;
 	float total_elapsed = 0.0f;
-	float time_limit = 5.0f;
+	float time_limit = 60.0f;
 	uint32_t points = 0;
 	
 	//camera:
