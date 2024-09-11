@@ -38,11 +38,13 @@ Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
 
 PlayMode::PlayMode() : scene(*snowglobe_scene) {
 	//get pointers to leg for convenience:
-	/*for (auto &transform : scene.transforms) {
-		if (transform.name == "Hip.FL") hip = &transform;
-		else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
-		else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
-	}*/
+	for (auto &transform : scene.transforms) {
+		if (transform.name == "Base") base = &transform;
+	}
+	if (base == nullptr) throw std::runtime_error("Base not found.");
+
+	base_rotation = base->rotation;
+	base_position = base->position;
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -55,10 +57,7 @@ PlayMode::~PlayMode() {
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 
 	if (evt.type == SDL_KEYDOWN) {
-		if (evt.key.keysym.sym == SDLK_ESCAPE) {
-			SDL_SetRelativeMouseMode(SDL_FALSE);
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_a) {
+		if (evt.key.keysym.sym == SDLK_a) {
 			left.downs += 1;
 			left.pressed = true;
 			return true;
@@ -89,24 +88,6 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			down.pressed = false;
 			return true;
 		}
-	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
-		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
-			SDL_SetRelativeMouseMode(SDL_TRUE);
-			return true;
-		}
-	} else if (evt.type == SDL_MOUSEMOTION) {
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			glm::vec2 motion = glm::vec2(
-				evt.motion.xrel / float(window_size.y),
-				-evt.motion.yrel / float(window_size.y)
-			);
-			camera->transform->rotation = glm::normalize(
-				camera->transform->rotation
-				* glm::angleAxis(-motion.x * camera->fovy, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::angleAxis(motion.y * camera->fovy, glm::vec3(1.0f, 0.0f, 0.0f))
-			);
-			return true;
-		}
 	}
 
 	return false;
@@ -115,31 +96,45 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 void PlayMode::update(float elapsed) {
 
 	//slowly rotates through [0,1):
-	rotator += elapsed / 10.0f;
+	rotator += elapsed / 5.0f;
 	rotator -= std::floor(rotator);
 
-	total_elapsed += elapsed;
+	base->rotation = base_rotation * glm::angleAxis(
+		glm::radians(-360.0f * rotator),
+		glm::vec3(0.0f, 0.0f, 1.0f)
+	);
 
-	//move camera:
+	total_elapsed += elapsed;
+	game_over = total_elapsed <= time_limit;
+
+	// move the globe:
 	{
 
 		//combine inputs into a move:
-		constexpr float PlayerSpeed = 30.0f;
 		glm::vec2 move = glm::vec2(0.0f);
-		if (left.pressed && !right.pressed) move.x =-1.0f;
+		if (left.pressed && !right.pressed) move.x = -1.0f;
 		if (!left.pressed && right.pressed) move.x = 1.0f;
-		if (down.pressed && !up.pressed) move.y =-1.0f;
+		if (down.pressed && !up.pressed) move.y = -1.0f;
 		if (!down.pressed && up.pressed) move.y = 1.0f;
 
 		//make it so that moving diagonally doesn't go faster:
-		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
+		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * base_speed * elapsed;
 
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 frame_right = frame[0];
 		// glm::vec3 frame_up = frame[1];
 		glm::vec3 frame_forward = -frame[2];
+		
+		// remove z-coordinate to prevent height movement
+		frame_right.z = 0.0f;
+		frame_forward.z = 0.0f;
 
-		camera->transform->position += move.x * frame_right + move.y * frame_forward;
+		base->position += move.x * frame_right + move.y * frame_forward;
+		glm::vec3 diff = base->position - base_position;
+		// stay within the circle
+		if (glm::length(diff) >= bound_radius) {
+			base->position = base_position + bound_radius * glm::normalize(diff);
+		}
 	}
 
 	//reset button press counters:
@@ -157,24 +152,24 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	// TODO: consider using the Light(s) in the scene to do this
 	glUseProgram(lit_color_texture_program->program);
 	glUniform1i(lit_color_texture_program->LIGHT_TYPE_int, 1);
-	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(0.0f, 0.0f,-1.0f)));
+	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(-0.6f, 0.0f,-0.8f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(0.5f, 0.7f, 0.8f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// glEnable(GL_BLEND);
+	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	GL_ERRORS(); //print any errors produced by this setup code
 
 	scene.draw(*camera);
 
-	glDisable(GL_BLEND);
+	// glDisable(GL_BLEND);
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
@@ -187,7 +182,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		std::string info = (total_elapsed <= time_limit) ? "Mouse motion rotates camera; WASD moves; escape ungrabs mouse" : "Game over!";
+		std::string info = game_over ? "WASD to move snow globe" : "Game over!";
 		lines.draw_text(info,
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),

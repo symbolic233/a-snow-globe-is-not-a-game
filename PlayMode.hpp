@@ -31,6 +31,24 @@ struct PlayMode : Mode {
 	float total_elapsed = 0.0f;
 	float time_limit = 60.0f;
 	uint32_t points = 0;
+
+	//base rotation:
+	Scene::Transform *base = nullptr;
+	glm::quat base_rotation;
+	glm::vec3 base_position;
+	float base_speed = 40.0f;
+	float bound_radius = 50.0f;
+	float globe_radius = 5.0f;
+
+	// snow
+	struct Particle {
+		Scene::Transform *particle_transform = nullptr;
+		glm::vec3 position;
+	};
+	std::vector<Particle> snow;
+	float snow_height = 50.0f;
+
+	bool game_over = false;
 	
 	//camera:
 	Scene::Camera *camera = nullptr;
