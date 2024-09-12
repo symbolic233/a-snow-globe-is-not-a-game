@@ -50,11 +50,11 @@ struct PlayMode : Mode {
 		uint32_t id;
 	};
 	std::vector<Particle> snow;
-	float snow_height = 70.0f;
-	float snow_height_variation = 20.0f;
+	float snow_height = 80.0f;
+	float snow_height_variation = 30.0f;
 	float snowfall_speed = 10.0f;
-	float snowfall_speed_variation = 2.0f;
-	uint32_t copies = 100;
+	float snowfall_speed_variation = 3.0f;
+	uint32_t copies = 200;
 
 	void reset_snow_position(uint32_t i); // reset position of snow particle i
 

@@ -41,7 +41,7 @@ Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
 		drawable.pipeline.count = mesh.count;
 
 	});
-	uint32_t copies = 100;
+	uint32_t copies = 200;
 	for (uint32_t i = 0; i < copies; i++) {
 		s.load(data_path("snow.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name) {
 		Mesh const &mesh = snow_meshes->lookup(mesh_name);
@@ -155,9 +155,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 
-	//slowly rotates through [0,1):
-	rotator += elapsed / 5.0f;
-	rotator -= std::floor(rotator);
+	if (!game_over) {
+		// slowly rotates through [0,1):
+		rotator += elapsed / 5.0f;
+		rotator -= std::floor(rotator);
+	}
 	for (Particle p: snow) {
 		p.transform->position.z -= elapsed * p.fall_speed;
 		glm::vec3 cur_center = base->position + globe->position;
@@ -223,14 +225,14 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	camera->aspect = float(drawable_size.x) / float(drawable_size.y);
 
 	//set up light type and position for lit_color_texture_program:
-	// TODO: consider using the Light(s) in the scene to do this
 	glUseProgram(lit_color_texture_program->program);
 	glUniform1i(lit_color_texture_program->LIGHT_TYPE_int, 1);
 	glUniform3fv(lit_color_texture_program->LIGHT_DIRECTION_vec3, 1, glm::value_ptr(glm::vec3(-0.6f, 0.0f,-0.8f)));
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.7f, 0.8f, 1.0f);
+	float time_dark = std::max(0.2f, 0.2f + 0.8f * (1.0f - total_elapsed / time_limit));
+	glClearColor(time_dark * 0.5f, time_dark * 0.7f, time_dark * 0.8f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -268,13 +270,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 				" | Time left: " + std::to_string(time_left) + " s";
 		}
 		lines.draw_text(info,
-			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
+			glm::vec3(-aspect + 0.1f * H, 0.9f - 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0x00, 0x00, 0x80, 0x00));
+			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
 		lines.draw_text(info,
-			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + 0.1f * H + ofs, 0.0),
+			glm::vec3(-aspect + 0.1f * H + ofs, 0.9f - 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
+			glm::u8vec4(0x00, 0x00, 0xff, 0x00));
 	}
 }
