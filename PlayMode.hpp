@@ -34,20 +34,26 @@ struct PlayMode : Mode {
 
 	//base rotation:
 	Scene::Transform *base = nullptr;
+	Scene::Transform *globe = nullptr;
 	glm::quat base_rotation;
 	glm::vec3 base_position;
+	glm::vec3 globe_position;
 	float base_speed = 40.0f;
 	float bound_radius = 45.0f;
-	float globe_radius = 5.0f;
+	float globe_elevation = 4.2f;
+	float globe_radius = 5.6f;
 
 	// snow
 	struct Particle {
 		Scene::Transform *transform = nullptr;
+		float fall_speed = 10.0f;
 		uint32_t id;
 	};
 	std::vector<Particle> snow;
-	float snow_height = 50.0f;
+	float snow_height = 70.0f;
+	float snow_height_variation = 20.0f;
 	float snowfall_speed = 10.0f;
+	float snowfall_speed_variation = 2.0f;
 	uint32_t copies = 100;
 
 	void reset_snow_position(uint32_t i); // reset position of snow particle i

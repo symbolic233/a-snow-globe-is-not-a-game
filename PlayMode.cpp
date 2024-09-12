@@ -74,13 +74,19 @@ void PlayMode::reset_snow_position(uint32_t i) {
 	float r = std::sqrtf(mag(gen)) * (bound_radius - globe_radius);
     std::uniform_real_distribution<float> ang(0.0f, 2.0f * float(M_PI));
 	float angle = ang(gen);
-	p.transform->position = {r * std::cos(angle), r * std::sin(angle), snow_height};
+	std::uniform_real_distribution<float> alt(snow_height - snow_height_variation, snow_height + snow_height_variation);
+	p.transform->position = base_position;
+	p.transform->position += glm::vec3{r * std::cos(angle), r * std::sin(angle), alt(gen)};
+
+	std::uniform_real_distribution<float> v(snowfall_speed - snowfall_speed_variation, snowfall_speed + snowfall_speed_variation);
+	p.fall_speed = v(gen);
 }
 
 PlayMode::PlayMode() : scene(*snowglobe_scene) {
 	//get pointers to leg for convenience:
 	for (auto &transform : scene.transforms) {
 		if (transform.name == "Base") base = &transform;
+		if (transform.name == "Globe") globe = &transform;
 		if (transform.name.substr(0, 4) == "Snow" && transform.name != "Snow_test") {
 			Particle p;
 			p.transform = &transform;
@@ -92,7 +98,8 @@ PlayMode::PlayMode() : scene(*snowglobe_scene) {
 
 	base_rotation = base->rotation;
 	base_position = base->position;
-	
+	globe_position = globe->position;
+
 	if (snow.size() < copies) throw std::runtime_error("Not enough snow.");
 
 	for (Particle p: snow) {
@@ -151,11 +158,18 @@ void PlayMode::update(float elapsed) {
 	//slowly rotates through [0,1):
 	rotator += elapsed / 5.0f;
 	rotator -= std::floor(rotator);
-
 	for (Particle p: snow) {
-		p.transform->position.z -= elapsed * snowfall_speed;
-		if (p.transform->position.z < -1.0f) {
-			reset_snow_position(p.id);
+		p.transform->position.z -= elapsed * p.fall_speed;
+		glm::vec3 cur_center = base->position + globe->position;
+		cur_center.z += globe_elevation;
+		if (!game_over) {
+			if (glm::length(p.transform->position - cur_center) <= globe_radius) {
+				points++;
+				reset_snow_position(p.id);
+			}
+			else if (p.transform->position.z < -1.0f) {
+				reset_snow_position(p.id);
+			}
 		}
 	}
 
@@ -165,7 +179,7 @@ void PlayMode::update(float elapsed) {
 	);
 
 	total_elapsed += elapsed;
-	game_over = total_elapsed <= time_limit;
+	game_over = total_elapsed > time_limit;
 
 	// move the globe:
 	{
@@ -242,7 +256,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		std::string info = game_over ? "WASD to move snow globe" : "Game over!";
+		std::string info;
+		if (game_over) {
+			info = "Game over!"
+				" | Snow collected: " + std::to_string(points);
+		}
+		else {
+			int time_left = std::max(0, (int)(std::ceilf(time_limit - total_elapsed)));
+			info = "WASD to move snow globe"
+				" | Snow collected: " + std::to_string(points) +
+				" | Time left: " + std::to_string(time_left) + " s";
+		}
 		lines.draw_text(info,
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
