@@ -12,15 +12,22 @@
 
 #include <random>
 
-GLuint snowglobe_meshes_for_lit_color_texture_program = 0;
+GLuint snowglobe_meshes_for_texture = 0;
 Load< MeshBuffer > snowglobe_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	MeshBuffer const *ret = new MeshBuffer(data_path("snow-globe.pnct"));
-	snowglobe_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+	snowglobe_meshes_for_texture = ret->make_vao_for_program(lit_color_texture_program->program);
+	return ret;
+});
+
+GLuint snow_texture = 0;
+Load< MeshBuffer > snow_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("snow.pnct"));
+	snow_texture = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
 Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("snow-globe.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+	Scene s(data_path("snow-globe.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name) {
 		Mesh const &mesh = snowglobe_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
@@ -28,18 +35,45 @@ Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
 
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
-		drawable.pipeline.vao = snowglobe_meshes_for_lit_color_texture_program;
+		drawable.pipeline.vao = snowglobe_meshes_for_texture;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
 
 	});
+	uint32_t copies = 100;
+	for (uint32_t i = 0; i < copies; i++) {
+		s.load(data_path("snow.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name) {
+		Mesh const &mesh = snow_meshes->lookup(mesh_name);
+
+		transform->name = "Snow" + std::to_string(i + 1);
+		transform->position = {0.0f, 0.0f, -5.0f}; // hide below ground for now
+
+		scene.drawables.emplace_back(transform);
+		Scene::Drawable &drawable = scene.drawables.back();
+
+		drawable.pipeline = lit_color_texture_program_pipeline;
+
+		drawable.pipeline.vao = snow_texture;
+		drawable.pipeline.type = mesh.type;
+		drawable.pipeline.start = mesh.start;
+		drawable.pipeline.count = mesh.count;
+		});
+	}
+	return new Scene(s);
 });
 
 PlayMode::PlayMode() : scene(*snowglobe_scene) {
 	//get pointers to leg for convenience:
 	for (auto &transform : scene.transforms) {
 		if (transform.name == "Base") base = &transform;
+		if (transform.name.substr(0, 4) == "Snow") {
+			std::cout << std::stoul(&transform.name[4]) << std::endl;
+			Particle p;
+			p.transform = &transform;
+			p.id = std::stoul(&transform.name[4]);
+			snow.push_back(p);
+		}
 	}
 	if (base == nullptr) throw std::runtime_error("Base not found.");
 

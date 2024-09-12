@@ -42,8 +42,8 @@ struct PlayMode : Mode {
 
 	// snow
 	struct Particle {
-		Scene::Transform *particle_transform = nullptr;
-		glm::vec3 position;
+		Scene::Transform *transform = nullptr;
+		uint32_t id;
 	};
 	std::vector<Particle> snow;
 	float snow_height = 50.0f;
