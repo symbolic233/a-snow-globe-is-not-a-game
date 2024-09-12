@@ -46,7 +46,7 @@ Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
 		s.load(data_path("snow.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name) {
 		Mesh const &mesh = snow_meshes->lookup(mesh_name);
 
-		transform->name = "Snow" + std::to_string(i + 1);
+		transform->name = "Snow" + std::to_string(i);
 		transform->position = {0.0f, 0.0f, -5.0f}; // hide below ground for now
 
 		scene.drawables.emplace_back(transform);
@@ -63,12 +63,25 @@ Load< Scene > snowglobe_scene(LoadTagDefault, []() -> Scene const * {
 	return new Scene(s);
 });
 
+void PlayMode::reset_snow_position(uint32_t i) {
+	Particle p = snow[i];
+	// generate random distance and angle
+	// sourced partly from https://en.cppreference.com/w/cpp/numeric/random/uniform_real_distribution
+	std::random_device rd;
+    std::mt19937 gen(rd());
+	// radius distribution is proportional to r
+	std::uniform_real_distribution<float> mag(0.0f, 1.0f);
+	float r = std::sqrtf(mag(gen)) * (bound_radius - globe_radius);
+    std::uniform_real_distribution<float> ang(0.0f, 2.0f * float(M_PI));
+	float angle = ang(gen);
+	p.transform->position = {r * std::cos(angle), r * std::sin(angle), snow_height};
+}
+
 PlayMode::PlayMode() : scene(*snowglobe_scene) {
 	//get pointers to leg for convenience:
 	for (auto &transform : scene.transforms) {
 		if (transform.name == "Base") base = &transform;
-		if (transform.name.substr(0, 4) == "Snow") {
-			std::cout << std::stoul(&transform.name[4]) << std::endl;
+		if (transform.name.substr(0, 4) == "Snow" && transform.name != "Snow_test") {
 			Particle p;
 			p.transform = &transform;
 			p.id = std::stoul(&transform.name[4]);
@@ -79,6 +92,12 @@ PlayMode::PlayMode() : scene(*snowglobe_scene) {
 
 	base_rotation = base->rotation;
 	base_position = base->position;
+	
+	if (snow.size() < copies) throw std::runtime_error("Not enough snow.");
+
+	for (Particle p: snow) {
+		reset_snow_position(p.id);
+	}
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -132,6 +151,13 @@ void PlayMode::update(float elapsed) {
 	//slowly rotates through [0,1):
 	rotator += elapsed / 5.0f;
 	rotator -= std::floor(rotator);
+
+	for (Particle p: snow) {
+		p.transform->position.z -= elapsed * snowfall_speed;
+		if (p.transform->position.z < -1.0f) {
+			reset_snow_position(p.id);
+		}
+	}
 
 	base->rotation = base_rotation * glm::angleAxis(
 		glm::radians(-360.0f * rotator),

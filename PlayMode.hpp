@@ -37,7 +37,7 @@ struct PlayMode : Mode {
 	glm::quat base_rotation;
 	glm::vec3 base_position;
 	float base_speed = 40.0f;
-	float bound_radius = 50.0f;
+	float bound_radius = 45.0f;
 	float globe_radius = 5.0f;
 
 	// snow
@@ -47,6 +47,10 @@ struct PlayMode : Mode {
 	};
 	std::vector<Particle> snow;
 	float snow_height = 50.0f;
+	float snowfall_speed = 10.0f;
+	uint32_t copies = 100;
+
+	void reset_snow_position(uint32_t i); // reset position of snow particle i
 
 	bool game_over = false;
 	
