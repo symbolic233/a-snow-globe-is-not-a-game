@@ -271,12 +271,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		}
 		lines.draw_text(info,
 			glm::vec3(-aspect + 0.1f * H, 0.9f - 0.1f * H, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
+			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H * 0.9f, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
 		lines.draw_text(info,
 			glm::vec3(-aspect + 0.1f * H + ofs, 0.9f - 0.1f * H + ofs, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
+			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H * 0.9f, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0xff, 0x00));
 	}
 }

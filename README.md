@@ -10,7 +10,7 @@ Screen Shot:
 
 How To Play:
 
-Use the WASD keys to move the snow globe around on the plane. If a snow particle touches the globe, you get a point. Otherwise, it touches the ground. The goal is to get as many points as possible.
+Use the WASD keys to move the snow globe around on the plane (within the bounds of the blue circle). If a snow particle touches the globe, you get a point. Otherwise, it touches the ground. The goal is to get as many points as possible.
 
 Snow particles further away are smaller than closer ones, so that can help you gauge where the snow falls.
 
